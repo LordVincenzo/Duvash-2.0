@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { ShoppingBag, Check } from 'lucide-react'
 import { Product, ProductColor } from '@/lib/types'
 import { useCart } from '@/lib/cart-context'
@@ -34,11 +35,21 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <article className="group bg-card rounded-lg overflow-hidden border border-border hover:shadow-lg transition-all duration-300">
       <div className="aspect-[3/4] overflow-hidden bg-muted relative">
-        <div className="w-full h-full flex items-center justify-center bg-secondary/50">
-          <span className="text-muted-foreground text-sm text-center px-4">
-            {product.name}
-          </span>
-        </div>
+        {product.image && product.image !== '/placeholder-product.jpg' ? (
+          <Image
+            src={product.image}
+            alt={product.name}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-secondary/50">
+            <span className="text-muted-foreground text-sm text-center px-4">
+              {product.name}
+            </span>
+          </div>
+        )}
         {product.featured && (
           <span className="absolute top-3 left-3 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-sm uppercase tracking-wide font-medium">
             Destacado

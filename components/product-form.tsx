@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { X, Plus, Trash2 } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { X, Plus, Trash2, Upload, ImageIcon, Loader2 } from 'lucide-react'
+import Image from 'next/image'
 import { Product, ProductColor, CATEGORIES } from '@/lib/types'
 
 interface ProductFormProps {
@@ -17,8 +18,62 @@ export function ProductForm({ product, onSave, onClose }: ProductFormProps) {
   const [category, setCategory] = useState(product?.category || CATEGORIES[0].id)
   const [colors, setColors] = useState<ProductColor[]>(product?.colors || [])
   const [featured, setFeatured] = useState(product?.featured || false)
+  const [imageUrl, setImageUrl] = useState(product?.image || '')
+  const [uploading, setUploading] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
   const [newColorName, setNewColorName] = useState('')
   const [newColorHex, setNewColorHex] = useState('#000000')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleUpload = async (file: File) => {
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
+    if (!validTypes.includes(file.type)) {
+      alert('Formato no valido. Usa JPG, PNG o WebP.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La imagen es muy pesada. Maximo 5MB.')
+      return
+    }
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (res.ok) {
+        setImageUrl(data.url)
+      } else {
+        alert(data.error || 'Error al subir la imagen')
+      }
+    } catch {
+      alert('Error al subir la imagen')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleUpload(file)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragActive(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleUpload(file)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragActive(true)
+  }
+
+  const handleDragLeave = () => {
+    setDragActive(false)
+  }
 
   const handleAddColor = () => {
     if (newColorName.trim()) {
@@ -43,7 +98,7 @@ export function ProductForm({ product, onSave, onClose }: ProductFormProps) {
       price: parseFloat(price),
       category,
       colors,
-      image: product?.image || '/placeholder-product.jpg',
+      image: imageUrl || '/placeholder-product.jpg',
       featured,
     })
   }
@@ -61,6 +116,89 @@ export function ProductForm({ product, onSave, onClose }: ProductFormProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-4">
+          {/* Image Upload */}
+          <div>
+            <label className="block text-sm font-medium text-card-foreground mb-2">
+              Foto del producto
+            </label>
+
+            {imageUrl ? (
+              <div className="relative w-full aspect-[3/4] max-w-[200px] rounded-lg overflow-hidden border border-border bg-muted">
+                <Image
+                  src={imageUrl}
+                  alt="Preview del producto"
+                  fill
+                  className="object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setImageUrl('')}
+                  className="absolute top-2 right-2 bg-foreground/70 text-background p-1 rounded-full hover:bg-foreground/90 transition-colors"
+                  aria-label="Eliminar imagen"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => fileInputRef.current?.click()}
+                className={`w-full border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${
+                  dragActive
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50 hover:bg-secondary/50'
+                }`}
+                role="button"
+                tabIndex={0}
+                aria-label="Subir imagen del producto"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    fileInputRef.current?.click()
+                  }
+                }}
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                    <p className="text-sm text-muted-foreground">Subiendo imagen...</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+                      {dragActive ? (
+                        <Upload className="w-6 h-6 text-primary" />
+                      ) : (
+                        <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground text-center">
+                      {dragActive ? (
+                        <span className="text-primary font-medium">Suelta la imagen aqui</span>
+                      ) : (
+                        <>
+                          <span className="text-primary font-medium">Haz clic</span> o arrastra una imagen
+                        </>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">JPG, PNG o WebP. Max 5MB</p>
+                  </>
+                )}
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              onChange={handleFileChange}
+              className="hidden"
+              aria-hidden="true"
+            />
+          </div>
+
           {/* Name */}
           <div>
             <label htmlFor="product-name" className="block text-sm font-medium text-card-foreground mb-1">
