@@ -6,6 +6,7 @@ import { Plus, Pencil, Trash2, Eye, LogOut, Package, Search } from 'lucide-react
 import { AdminLogin } from '@/components/admin-login'
 import { ProductForm } from '@/components/product-form'
 import { Product, CATEGORIES } from '@/lib/types'
+import Image from 'next/image'
 import Link from 'next/link'
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
@@ -173,11 +174,28 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   {filteredProducts?.map((product) => (
                     <tr key={product.id} className="border-b border-border last:border-0 hover:bg-secondary/50 transition-colors">
                       <td className="px-4 py-3">
-                        <div>
-                          <p className="font-medium text-card-foreground text-sm">{product.name}</p>
-                          <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                            {product.description}
-                          </p>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-12 rounded overflow-hidden bg-muted flex-shrink-0 relative">
+                            {product.image && product.image !== '/placeholder-product.jpg' ? (
+                              <Image
+                                src={product.image}
+                                alt={product.name}
+                                fill
+                                className="object-cover"
+                                sizes="40px"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Package className="w-4 h-4 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-card-foreground text-sm">{product.name}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                              {product.description}
+                            </p>
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -233,32 +251,49 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             <div className="md:hidden flex flex-col gap-3">
               {filteredProducts?.map((product) => (
                 <div key={product.id} className="bg-card border border-border rounded-lg p-4">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-14 h-18 rounded-lg overflow-hidden bg-muted flex-shrink-0 relative" style={{ minHeight: '72px' }}>
+                      {product.image && product.image !== '/placeholder-product.jpg' ? (
+                        <Image
+                          src={product.image}
+                          alt={product.name}
+                          fill
+                          className="object-cover"
+                          sizes="56px"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Package className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-card-foreground text-sm truncate">{product.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">{getCategoryName(product.category)}</p>
-                      <p className="font-bold text-primary text-sm mt-1">{formatPrice(product.price)}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => {
-                          setEditingProduct(product)
-                          setShowForm(true)
-                        }}
-                        className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md"
-                        aria-label="Editar"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        className="p-2 text-muted-foreground hover:text-destructive hover:bg-secondary rounded-md"
-                        aria-label="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="font-medium text-card-foreground text-sm truncate">{product.name}</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5">{getCategoryName(product.category)}</p>
+                          <p className="font-bold text-primary text-sm mt-1">{formatPrice(product.price)}</p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => {
+                              setEditingProduct(product)
+                              setShowForm(true)
+                            }}
+                            className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md"
+                            aria-label="Editar"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(product.id)}
+                            className="p-2 text-muted-foreground hover:text-destructive hover:bg-secondary rounded-md"
+                            aria-label="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
                   <div className="flex items-center gap-1 mt-2">
                     {product.colors.map((color, i) => (
                       <div
