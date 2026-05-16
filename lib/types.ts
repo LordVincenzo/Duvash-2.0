@@ -15,11 +15,17 @@ export interface Product {
   featured?: boolean
 }
 
-export const CATEGORIES = [
+export interface Category {
+  id: string
+  name: string
+  slug: string
+}
+
+export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'carnaval', name: 'Carnaval', slug: 'carnaval' },
   { id: 'blusas', name: 'Blusas y Faldas', slug: 'blusas-faldas' },
   { id: 'vestidos', name: 'Vestidos', slug: 'vestidos' },
   { id: 'trajes-bano', name: 'Trajes de Bano', slug: 'trajes-bano' },
-] as const
+]
 
 export const WHATSAPP_NUMBER = '573246046273'
