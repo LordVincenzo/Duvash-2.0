@@ -1,220 +1,369 @@
+/* eslint-disable @next/next/no-img-element */
 'use client'
 
-import { useState } from 'react'
-import { X, Plus, Trash2 } from 'lucide-react'
+import { ChangeEvent, FormEvent, useState } from 'react'
+import { X, Plus, Trash2, ImagePlus } from 'lucide-react'
 import { Product, ProductColor, CATEGORIES } from '@/lib/types'
 
+type ProductFormData = Omit<Product, 'id'> & { id?: string }
+
 interface ProductFormProps {
-  product?: Product | null
-  onSave: (product: Omit<Product, 'id'> & { id?: string }) => void
+  product: Product | null
+  onSave: (productData: ProductFormData) => void | Promise<void>
   onClose: () => void
 }
 
 export function ProductForm({ product, onSave, onClose }: ProductFormProps) {
   const [name, setName] = useState(product?.name || '')
   const [description, setDescription] = useState(product?.description || '')
-  const [price, setPrice] = useState(product?.price?.toString() || '')
+  const [price, setPrice] = useState(product?.price ? String(product.price) : '')
   const [category, setCategory] = useState(product?.category || CATEGORIES[0].id)
-  const [colors, setColors] = useState<ProductColor[]>(product?.colors || [])
+  const [colors, setColors] = useState<ProductColor[]>(
+    product?.colors?.length ? product.colors : [{ name: 'Negro', hex: '#000000' }]
+  )
+  const [image, setImage] = useState(product?.image || '')
+  const [sizesText, setSizesText] = useState(product?.sizes?.join(', ') || '')
   const [featured, setFeatured] = useState(product?.featured || false)
-  const [newColorName, setNewColorName] = useState('')
-  const [newColorHex, setNewColorHex] = useState('#000000')
+  const [saving, setSaving] = useState(false)
 
-  const handleAddColor = () => {
-    if (newColorName.trim()) {
-      setColors([...colors, { name: newColorName.trim(), hex: newColorHex }])
-      setNewColorName('')
-      setNewColorHex('#000000')
+  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('Selecciona un archivo de imagen valido.')
+      return
     }
+
+    const maxSize = 3 * 1024 * 1024
+
+    if (file.size > maxSize) {
+      alert('La imagen es muy pesada. Usa una imagen menor a 3 MB.')
+      return
+    }
+
+    const reader = new FileReader()
+
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        setImage(reader.result)
+      }
+    }
+
+    reader.readAsDataURL(file)
   }
 
-  const handleRemoveColor = (index: number) => {
-    setColors(colors.filter((_, i) => i !== index))
+  const updateColor = (index: number, field: keyof ProductColor, value: string) => {
+    setColors((prev) =>
+      prev.map((color, i) =>
+        i === index ? { ...color, [field]: value } : color
+      )
+    )
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!name || !price || colors.length === 0) return
+  const addColor = () => {
+    setColors((prev) => [...prev, { name: '', hex: '#000000' }])
+  }
 
-    onSave({
-      ...(product?.id ? { id: product.id } : {}),
-      name,
-      description,
-      price: parseFloat(price),
-      category,
-      colors,
-      image: product?.image || '/placeholder-product.jpg',
-      featured,
+  const removeColor = (index: number) => {
+    setColors((prev) => {
+      if (prev.length === 1) return prev
+      return prev.filter((_, i) => i !== index)
     })
   }
 
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const cleanColors = colors.filter(
+      (color) => color.name.trim() !== '' && color.hex.trim() !== ''
+    )
+
+    if (!name.trim()) {
+      alert('Escribe el nombre del producto.')
+      return
+    }
+
+    if (!description.trim()) {
+      alert('Escribe la descripcion del producto.')
+      return
+    }
+
+    if (!price || Number(price) <= 0) {
+      alert('Escribe un precio valido.')
+      return
+    }
+
+    if (!cleanColors.length) {
+      alert('Agrega al menos un color.')
+      return
+    }
+
+    if (!image) {
+      alert('Sube una foto o pega una URL de imagen.')
+      return
+    }
+
+    const sizes = sizesText
+      .split(',')
+      .map((size) => size.trim())
+      .filter(Boolean)
+
+    const payload: ProductFormData = {
+      ...(product?.id ? { id: product.id } : {}),
+      name: name.trim(),
+      description: description.trim(),
+      price: Number(price),
+      category,
+      colors: cleanColors,
+      image,
+      featured,
+      ...(sizes.length ? { sizes } : {}),
+    }
+
+    try {
+      setSaving(true)
+      await onSave(payload)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-50 bg-foreground/50 flex items-center justify-center p-4">
-      <div className="bg-card border border-border rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="font-serif text-xl font-bold text-card-foreground">
-            {product ? 'Editar Producto' : 'Nuevo Producto'}
-          </h2>
-          <button onClick={onClose} className="p-1 hover:bg-secondary rounded-md" aria-label="Cerrar">
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+      <div className="bg-background border border-border rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div>
+            <h2 className="font-serif text-xl font-bold text-foreground">
+              {product ? 'Editar producto' : 'Nuevo producto'}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Completa la informacion del producto.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            aria-label="Cerrar"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-4">
-          {/* Name */}
-          <div>
-            <label htmlFor="product-name" className="block text-sm font-medium text-card-foreground mb-1">
-              Nombre del producto *
-            </label>
-            <input
-              id="product-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full bg-secondary text-foreground px-3 py-2 rounded-md border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="Ej: Top Espalda Afuera"
-              required
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label htmlFor="product-desc" className="block text-sm font-medium text-card-foreground mb-1">
-              Descripcion
-            </label>
-            <textarea
-              id="product-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-secondary text-foreground px-3 py-2 rounded-md border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] resize-none"
-              placeholder="Descripcion del producto..."
-            />
-          </div>
-
-          {/* Price */}
-          <div>
-            <label htmlFor="product-price" className="block text-sm font-medium text-card-foreground mb-1">
-              Precio (COP) *
-            </label>
-            <input
-              id="product-price"
-              type="number"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className="w-full bg-secondary text-foreground px-3 py-2 rounded-md border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="30000"
-              min="0"
-              required
-            />
-          </div>
-
-          {/* Category */}
-          <div>
-            <label htmlFor="product-category" className="block text-sm font-medium text-card-foreground mb-1">
-              Categoria
-            </label>
-            <select
-              id="product-category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-secondary text-foreground px-3 py-2 rounded-md border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Colors */}
-          <div>
-            <label className="block text-sm font-medium text-card-foreground mb-2">
-              Colores disponibles *
-            </label>
-
-            {colors.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {colors.map((color, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-2 bg-secondary px-3 py-1.5 rounded-full text-sm"
-                  >
-                    <div
-                      className="w-4 h-4 rounded-full border border-border"
-                      style={{ backgroundColor: color.hex }}
-                    />
-                    <span>{color.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveColor(index)}
-                      className="text-muted-foreground hover:text-destructive"
-                      aria-label={`Eliminar color ${color.name}`}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={newColorHex}
-                onChange={(e) => setNewColorHex(e.target.value)}
-                className="w-10 h-10 rounded-md border border-input cursor-pointer bg-transparent"
-              />
+        <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-foreground">
+                Nombre
+              </span>
               <input
                 type="text"
-                value={newColorName}
-                onChange={(e) => setNewColorName(e.target.value)}
-                placeholder="Nombre del color"
-                className="flex-1 bg-secondary text-foreground px-3 py-2 rounded-md border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    handleAddColor()
-                  }
-                }}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                className="bg-card text-foreground px-3 py-2.5 rounded-md border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Ej: Vestido flores"
               />
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-foreground">
+                Precio
+              </span>
+              <input
+                type="number"
+                min="0"
+                value={price}
+                onChange={(event) => setPrice(event.target.value)}
+                className="bg-card text-foreground px-3 py-2.5 rounded-md border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Ej: 50000"
+              />
+            </label>
+          </div>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-foreground">
+              Descripcion
+            </span>
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={3}
+              className="bg-card text-foreground px-3 py-2.5 rounded-md border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              placeholder="Describe el producto..."
+            />
+          </label>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-foreground">
+                Categoria
+              </span>
+              <select
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                className="bg-card text-foreground px-3 py-2.5 rounded-md border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {CATEGORIES.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-foreground">
+                Tallas
+              </span>
+              <input
+                type="text"
+                value={sizesText}
+                onChange={(event) => setSizesText(event.target.value)}
+                className="bg-card text-foreground px-3 py-2.5 rounded-md border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Ej: S, M, L"
+              />
+            </label>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-foreground">
+                Colores
+              </span>
+
               <button
                 type="button"
-                onClick={handleAddColor}
-                className="bg-primary text-primary-foreground p-2 rounded-md hover:opacity-90"
-                aria-label="Agregar color"
+                onClick={addColor}
+                className="text-sm bg-secondary text-secondary-foreground px-3 py-2 rounded-md flex items-center gap-2 hover:opacity-90 transition-opacity"
               >
                 <Plus className="w-4 h-4" />
+                Agregar color
               </button>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {colors.map((color, index) => (
+                <div
+                  key={index}
+                  className="grid grid-cols-[1fr_80px_auto] gap-2 items-center"
+                >
+                  <input
+                    type="text"
+                    value={color.name}
+                    onChange={(event) =>
+                      updateColor(index, 'name', event.target.value)
+                    }
+                    className="bg-card text-foreground px-3 py-2.5 rounded-md border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="Nombre del color"
+                  />
+
+                  <input
+                    type="color"
+                    value={color.hex}
+                    onChange={(event) =>
+                      updateColor(index, 'hex', event.target.value)
+                    }
+                    className="h-10 w-full bg-card rounded-md border border-input cursor-pointer"
+                    aria-label="Color"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => removeColor(index)}
+                    disabled={colors.length === 1}
+                    className="p-2.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="Eliminar color"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Featured */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={featured}
-              onChange={(e) => setFeatured(e.target.checked)}
-              className="w-4 h-4 rounded border-input accent-primary"
-            />
-            <span className="text-sm text-card-foreground">Producto destacado</span>
-          </label>
+          <div className="flex flex-col gap-3">
+            <span className="text-sm font-medium text-foreground">
+              Foto del producto
+            </span>
 
-          {/* Actions */}
-          <div className="flex items-center gap-3 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
+              <div className="aspect-[3/4] bg-muted rounded-md overflow-hidden border border-border flex items-center justify-center">
+                {image ? (
+                  <img
+                    src={image}
+                    alt={name || 'Vista previa del producto'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-sm text-muted-foreground text-center px-4">
+                    Sin imagen
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <label className="cursor-pointer bg-primary text-primary-foreground px-4 py-2.5 rounded-md text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+                  <ImagePlus className="w-4 h-4" />
+                  Subir foto desde el computador
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                </label>
+
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    Tambien puedes pegar una URL de imagen:
+                  </span>
+
+                  <input
+                    type="text"
+                    value={image.startsWith('data:image') ? '' : image}
+                    onChange={(event) => setImage(event.target.value)}
+                    className="bg-card text-foreground px-3 py-2.5 rounded-md border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="https://..."
+                  />
+
+                  {image.startsWith('data:image') && (
+                    <p className="text-xs text-muted-foreground">
+                      Imagen cargada desde tu computador.
+                    </p>
+                  )}
+                </div>
+
+                <label className="flex items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={featured}
+                    onChange={(event) => setFeatured(event.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  Marcar como destacado
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-secondary text-secondary-foreground py-2.5 rounded-md text-sm font-medium hover:bg-accent transition-colors"
+              className="px-4 py-2.5 rounded-md text-sm font-medium bg-secondary text-secondary-foreground hover:opacity-90 transition-opacity"
             >
               Cancelar
             </button>
+
             <button
               type="submit"
-              disabled={!name || !price || colors.length === 0}
-              className="flex-1 bg-primary text-primary-foreground py-2.5 rounded-md text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={saving}
+              className="px-4 py-2.5 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-60"
             >
-              {product ? 'Guardar Cambios' : 'Crear Producto'}
+              {saving ? 'Guardando...' : product ? 'Guardar cambios' : 'Crear producto'}
             </button>
           </div>
         </form>

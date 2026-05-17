@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client'
 
 import { useState } from 'react'
@@ -12,12 +13,14 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const [selectedColor, setSelectedColor] = useState<ProductColor | null>(null)
   const [added, setAdded] = useState(false)
+  const [imageError, setImageError] = useState(false)
   const { addItem } = useCart()
 
   const handleAddToCart = () => {
     if (!selectedColor) {
       return
     }
+
     addItem(product, selectedColor)
     setAdded(true)
     setTimeout(() => setAdded(false), 1500)
@@ -34,11 +37,21 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <article className="group bg-card rounded-lg overflow-hidden border border-border hover:shadow-lg transition-all duration-300">
       <div className="aspect-[3/4] overflow-hidden bg-muted relative">
-        <div className="w-full h-full flex items-center justify-center bg-secondary/50">
-          <span className="text-muted-foreground text-sm text-center px-4">
-            {product.name}
-          </span>
-        </div>
+        {product.image && !imageError ? (
+          <img
+            src={product.image}
+            alt={product.name}
+            onError={() => setImageError(true)}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-secondary/50">
+            <span className="text-muted-foreground text-sm text-center px-4">
+              {product.name}
+            </span>
+          </div>
+        )}
+
         {product.featured && (
           <span className="absolute top-3 left-3 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-sm uppercase tracking-wide font-medium">
             Destacado
@@ -60,7 +73,6 @@ export function ProductCard({ product }: ProductCardProps) {
           {formatPrice(product.price)}
         </p>
 
-        {/* Color Selector */}
         <div className="flex items-center gap-2 flex-wrap">
           {product.colors.map((color) => (
             <button
@@ -80,7 +92,10 @@ export function ProductCard({ product }: ProductCardProps) {
 
         {selectedColor && (
           <p className="text-xs text-muted-foreground">
-            Color: <span className="font-medium text-foreground">{selectedColor.name}</span>
+            Color:{' '}
+            <span className="font-medium text-foreground">
+              {selectedColor.name}
+            </span>
           </p>
         )}
 
@@ -91,8 +106,8 @@ export function ProductCard({ product }: ProductCardProps) {
             added
               ? 'bg-green-600 text-primary-foreground'
               : selectedColor
-              ? 'bg-primary text-primary-foreground hover:opacity-90 active:scale-[0.98]'
-              : 'bg-muted text-muted-foreground cursor-not-allowed'
+                ? 'bg-primary text-primary-foreground hover:opacity-90 active:scale-[0.98]'
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
           }`}
         >
           {added ? (
