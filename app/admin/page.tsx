@@ -104,14 +104,6 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             <p className="text-sm text-muted-foreground">Total Productos</p>
             <p className="text-2xl font-bold text-card-foreground mt-1">{products?.length || 0}</p>
           </div>
-          {CATEGORIES.slice(0, 3).map((cat) => (
-            <div key={cat.id} className="bg-card border border-border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">{cat.name}</p>
-              <p className="text-2xl font-bold text-card-foreground mt-1">
-                {products?.filter((p) => p.category === cat.id).length || 0}
-              </p>
-            </div>
-          ))}
         </div>
 
         {/* Actions Bar */}
