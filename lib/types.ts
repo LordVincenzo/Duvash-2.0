@@ -19,7 +19,7 @@ export const CATEGORIES = [
   { id: 'carnaval', name: 'Carnaval', slug: 'carnaval' },
   { id: 'blusas', name: 'Blusas y Faldas', slug: 'blusas-faldas' },
   { id: 'vestidos', name: 'Vestidos', slug: 'vestidos' },
-  { id: 'trajes-bano', name: 'Trajes de Bano', slug: 'trajes-bano' },
+  { id: 'trajes-bano', name: 'Trajes de Baño', slug: 'trajes-baño' },
 ] as const
 
 export const WHATSAPP_NUMBER = '573246046273'
