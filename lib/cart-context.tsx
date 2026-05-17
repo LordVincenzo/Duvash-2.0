@@ -1,6 +1,13 @@
 'use client'
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  ReactNode,
+} from 'react'
 import { Product, ProductColor } from '@/lib/types'
 
 export interface CartItem {
@@ -19,16 +26,49 @@ interface CartContextType {
   totalPrice: number
 }
 
+const CART_STORAGE_KEY = 'duvash-cart'
+
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
+  const [cartLoaded, setCartLoaded] = useState(false)
+
+  useEffect(() => {
+    try {
+      const savedCart = window.localStorage.getItem(CART_STORAGE_KEY)
+
+      if (savedCart) {
+        const parsedCart = JSON.parse(savedCart) as CartItem[]
+
+        if (Array.isArray(parsedCart)) {
+          setItems(parsedCart)
+        }
+      }
+    } catch (error) {
+      console.error('Error cargando el carrito:', error)
+    } finally {
+      setCartLoaded(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!cartLoaded) return
+
+    try {
+      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items))
+    } catch (error) {
+      console.error('Error guardando el carrito:', error)
+    }
+  }, [items, cartLoaded])
 
   const addItem = useCallback((product: Product, color: ProductColor) => {
     setItems((prev) => {
       const existing = prev.find(
-        (item) => item.product.id === product.id && item.color.name === color.name
+        (item) =>
+          item.product.id === product.id && item.color.name === color.name
       )
+
       if (existing) {
         return prev.map((item) =>
           item.product.id === product.id && item.color.name === color.name
@@ -36,6 +76,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             : item
         )
       }
+
       return [...prev, { product, color, quantity: 1 }]
     })
   }, [])
@@ -43,7 +84,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const removeItem = useCallback((productId: string, colorName: string) => {
     setItems((prev) =>
       prev.filter(
-        (item) => !(item.product.id === productId && item.color.name === colorName)
+        (item) =>
+          !(item.product.id === productId && item.color.name === colorName)
       )
     )
   }, [])
@@ -54,6 +96,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         removeItem(productId, colorName)
         return
       }
+
       setItems((prev) =>
         prev.map((item) =>
           item.product.id === productId && item.color.name === colorName
@@ -70,6 +113,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
+
   const totalPrice = items.reduce(
     (sum, item) => sum + item.product.price * item.quantity,
     0
@@ -77,7 +121,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   return (
     <CartContext.Provider
-      value={{ items, addItem, removeItem, updateQuantity, clearCart, totalItems, totalPrice }}
+      value={{
+        items,
+        addItem,
+        removeItem,
+        updateQuantity,
+        clearCart,
+        totalItems,
+        totalPrice,
+      }}
     >
       {children}
     </CartContext.Provider>
@@ -86,8 +138,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
 export function useCart() {
   const context = useContext(CartContext)
+
   if (!context) {
     throw new Error('useCart must be used within a CartProvider')
   }
+
   return context
 }
